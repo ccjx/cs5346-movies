@@ -1,0 +1,43 @@
+/*!
+ * Start Bootstrap - Heroic Features (https://startbootstrap.com/template-overviews/heroic-features)
+ * Copyright 2013-2019 Start Bootstrap
+ * Licensed under MIT (https://github.com/BlackrockDigital/startbootstrap-heroic-features/blob/master/LICENSE)
+ */
+body {
+  padding-top: 60px;
+}
+
+.card-img-top {
+  height: 200px;
+  object-fit: cover;
+}
+
+.overlay-color {
+  background-color: black;
+  opacity: 0.7;
+  border-radius: 5px;
+  height: 100%;
+  width: 100%;
+  z-index: 101;
+  position: absolute;
+
+}
+.overlay-image {
+  position: absolute;
+  z-index: 100;
+  top:0;
+  bottom:0;
+  left:15px;
+  right:15px;
+}
+
+.overlay-text {
+  /* text-align: center; */
+  position: absolute;
+  z-index: 200;
+  
+  font-size: 120px;
+  color: white;
+  bottom:0;
+  right: 20px;
+}
