@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    .bar--positive {
+        fill: steelblue;
+    }
+
+    .bar--negative {
+        fill: darkorange;
+    }
+
+    .axis text {
+        font: 10px sans-serif;
+    }
+
+    .axis path,
+    .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+    }
+
+    .d3-tip {
+        line-height: 1;
+        font-weight: bold;
+        padding: 12px;
+        background: #EAC683;
+        color: #fff;
+        border-radius: 2px;
+        font: 10px sans-serif;
+    }
+
+    /* Creates a small triangle extender for the tooltip */
+    .d3-tip:after {
+        box-sizing: border-box;
+        display: inline;
+        font-size: 10px;
+        width: 100%;
+        line-height: 1;
+        color: #EAC683;
+        content: "\25BC";
+        position: absolute;
+        text-align: center;
+    }
+
+    /* Style northward tooltips differently */
+    .d3-tip.n:after {
+        margin: -1px 0 0 0;
+        top: 100%;
+        left: 0;
+    }
+
+    svg{
+        margin:auto;
+    }
+
+</style>
+<body>
+<script src="../../js/d3.v5.js"></script>
+<script src="../../js/d3-tip.js"></script>
+
+<script>
+
+    let margin = {top: 20, right: 20, bottom: 50, left: 60},
+        width = 900 - margin.left - margin.right,
+        height = 560 - margin.top - margin.bottom;
+
+    let x = d3.scaleLinear()
+        .range([0, width]);
+
+    let y = d3.scaleBand()
+        .rangeRound([0, height])
+        .padding(0.1);
+
+    let formatValue = d3.format(".2s");
+
+    let xAxis = d3.axisBottom()
+        .scale(x)
+        .tickFormat( d => formatValue(d).replace(/G/,"B"));
+
+
+    let yAxis = d3.axisLeft()
+        .scale(y)
+        .tickSize(0)
+        .tickPadding(6);
+
+    let svg = d3.select("body").append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        // .attr("preserveAspectRatio", "xMinYMin meet")
+        // .attr("viewBox", `0 0 900 560`)
+        // .classed("svg-content-responsive", true)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    let tip = d3.tip()
+        .attr('class', 'd3-tip')
+        .offset([0, 0])
+        .html(d => `${d.profit > 0 ? "Profit" : "Loss"}: <span style='color:#362414'> ${format(d.profit > 0 ? d.profit : d.profit * -1)} </span>`
+        );
+
+    svg.call(tip);
+
+    d3.csv("top10_lowest10.csv", type).then(data => {
+        console.table('data', data)
+        x.domain(d3.extent(data, d => d.profit)).nice();
+        y.domain(data.map(d => d.original_title));
+
+        svg.selectAll(".bar")
+            .data(data)
+            .enter().append("rect")
+            .attr("class", d => {
+                return "bar bar--" + (d.profit < 0 ? "negative" : "positive");
+            })
+            .attr("x", d => x(Math.min(0, d.profit)))
+            .attr("y", d => y(d.original_title))
+            .attr("width", d => Math.abs(x(d.profit) - x(0)) )
+            .attr("height", y.bandwidth())
+            .on('mouseover', tip.show)
+            .on('mouseout', tip.hide);
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+        svg.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(" + x(0) + ",0)")
+            .call(yAxis);
+
+        // chart label
+        svg.append("text")
+            .attr("x", (width / 2))
+            .attr("y", 0)
+            .attr("text-anchor", "middle")
+            .style("font", "10px sans-serif")
+            .style("font-weight", "bold")
+            .text("Top 10 Highest vs Bottom 10 Lowest Grossing Movies");
+
+        // x-axis label
+        svg.append("text")
+            .attr("x", (width / 2))
+            .attr("y", height + margin.bottom)
+            .attr("text-anchor", "middle")
+            .style("font", "10px sans-serif")
+            .style("font-weight", "bold")
+            .text("Profit");
+
+    });
+
+    function type(d) {
+        d.profit = +d.profit;
+        return d;
+    }
+
+    function format(d) {
+        return "$" + d3.format(".2s")(d).replace(/G/,"B"); }
+
+</script>
