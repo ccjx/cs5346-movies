@@ -79,7 +79,7 @@
 
     svg.call(tip);
 
-    d3.csv("data/top10_finances.csv", function(d, i, columns) {
+    d3.csv("top10_finances.csv", function(d, i, columns) {
         for (let i = 1, n = columns.length; i < n; ++i) d[columns[i]] = +d[columns[i]];
         console.log('d', d)
         return d;
