@@ -1,3 +1,7 @@
+---
+# this is an empty front matter
+---
+
 <!DOCTYPE html>
 <style>
 
@@ -10,7 +14,7 @@
     }
 
     .bar:hover {
-        fill: #362414 ;
+        fill: #362414;
     }
 
     .d3-tip {
@@ -43,7 +47,30 @@
     }
 
 </style>
-<svg width="960" height="500"></svg>
+<head>
+    <link href="../../vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    {% include nav.html %}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12" style="text-align: center;">
+            <br/><br/>
+            <svg width="960" height="500"></svg>
+            <br/>
+            <br/>
+        </div>
+    </div>
+
+</div>
+
+    {% include footer.html %}
+
+
+    <script src="../../vendor/jquery/jquery.min.js"></script>
+    <script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
 <script src="../../vendor/bootstrap/js/d3.v5.js"></script>
 <script src="../../vendor/bootstrap/js/d3-tip.js"></script>
 <script>
@@ -72,18 +99,18 @@
     let tip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([-10, 0])
-        .html(function(d) {
+        .html(function (d) {
             console.error('calling', d)
             return "<strong>" + d.key + ":" + "</strong> <span style='color:#362414'>" + d.value + "</span>";
         });
 
     svg.call(tip);
 
-    d3.csv("top10_finances.csv", function(d, i, columns) {
+    d3.csv("top10_finances.csv", function (d, i, columns) {
         for (let i = 1, n = columns.length; i < n; ++i) d[columns[i]] = +d[columns[i]];
         console.log('d', d)
         return d;
-    }).then(function(data) {
+    }).then(function (data) {
         console.log('data', data);
 
         let keys = data.columns.slice(1);
@@ -93,24 +120,44 @@
 
         console.log('keys');
         console.log(keys);
-        x0.domain(data.map(function(d) { return d.original_title; }));
+        x0.domain(data.map(function (d) {
+            return d.original_title;
+        }));
         x1.domain(keys).rangeRound([0, x0.bandwidth()]);
-        y.domain([0, d3.max(data, function(d) { return d3.max(keys, function(key) { return d[key]; }); })]).nice();
+        y.domain([0, d3.max(data, function (d) {
+            return d3.max(keys, function (key) {
+                return d[key];
+            });
+        })]).nice();
 
         g.append("g")
             .selectAll("g")
             .data(data)
             .enter().append("g")
-            .attr("class","bar")
-            .attr("transform", function(d) { return "translate(" + x0(d.original_title) + ",0)"; })
+            .attr("class", "bar")
+            .attr("transform", function (d) {
+                return "translate(" + x0(d.original_title) + ",0)";
+            })
             .selectAll("rect")
-            .data(function(d) { return keys.map(function(key) { return {key: key, value: d[key]}; }); })
+            .data(function (d) {
+                return keys.map(function (key) {
+                    return {key: key, value: d[key]};
+                });
+            })
             .enter().append("rect")
-            .attr("x", function(d) { return x1(d.key); })
-            .attr("y", function(d) { return y(d.value); })
+            .attr("x", function (d) {
+                return x1(d.key);
+            })
+            .attr("y", function (d) {
+                return y(d.value);
+            })
             .attr("width", x1.bandwidth())
-            .attr("height", function(d) { return height - y(d.value); })
-            .attr("fill", function(d) { return z(d.key); })
+            .attr("height", function (d) {
+                return height - y(d.value);
+            })
+            .attr("fill", function (d) {
+                return z(d.key);
+            })
             .on('mouseover', tip.show)
             .on('mouseout', tip.hide);
 
@@ -124,7 +171,7 @@
 
         g.append("text")
             .attr("transform",
-                "translate(" + (width/2) + " ," +
+                "translate(" + (width / 2) + " ," +
                 (height + margin.top + 20) + ")")
             .attr("font-size", 10)
             .attr("fill", "#000")
@@ -135,7 +182,7 @@
 
         g.append("g")
             .attr("class", "y axis")
-            .call(d3.axisLeft(y).tickFormat( d => formatValue(d).replace(/G/,"B")))
+            .call(d3.axisLeft(y).tickFormat(d => formatValue(d).replace(/G/, "B")))
             .append("text")
             .attr("x", 2)
             .attr("y", y(y.ticks().pop()) + 0.5)
@@ -152,7 +199,9 @@
             .selectAll("g")
             .data(keys.slice().reverse())
             .enter().append("g")
-            .attr("transform", function(d, i) { return "translate(0," + i * 20 + ")"; });
+            .attr("transform", function (d, i) {
+                return "translate(0," + i * 20 + ")";
+            });
 
         legend.append("rect")
             .attr("x", width - 17)
@@ -160,14 +209,18 @@
             .attr("height", 15)
             .attr("fill", z)
             .attr("stroke", z)
-            .attr("stroke-width",2)
-            .on("click",function(d) { update(d) });
+            .attr("stroke-width", 2)
+            .on("click", function (d) {
+                update(d)
+            });
 
         legend.append("text")
             .attr("x", width - 24)
             .attr("y", 9.5)
             .attr("dy", "0.32em")
-            .text(function(d) { return d; });
+            .text(function (d) {
+                return d;
+            });
 
         let filtered = [];
 
@@ -194,7 +247,7 @@
             if (filtered.indexOf(d) == -1) {
                 filtered.push(d);
                 // if all bars are un-checked, reset:
-                if(filtered.length == keys.length) filtered = [];
+                if (filtered.length == keys.length) filtered = [];
             }
             // otherwise remove it:
             else {
@@ -205,13 +258,17 @@
             // Update the scales for each group(/states)'s items:
             //
             let newKeys = [];
-            keys.forEach(function(d) {
-                if (filtered.indexOf(d) == -1 ) {
+            keys.forEach(function (d) {
+                if (filtered.indexOf(d) == -1) {
                     newKeys.push(d);
                 }
             })
             x1.domain(newKeys).rangeRound([0, x0.bandwidth()]);
-            y.domain([0, d3.max(data, function(d) { return d3.max(keys, function(key) { if (filtered.indexOf(key) == -1) return d[key]; }); })]).nice();
+            y.domain([0, d3.max(data, function (d) {
+                return d3.max(keys, function (key) {
+                    if (filtered.indexOf(key) == -1) return d[key];
+                });
+            })]).nice();
 
             // update the y axis:
             svg.select(".y")
@@ -224,48 +281,60 @@
             // Filter out the bands that need to be hidden:
             //
             let bars = svg.selectAll(".bar").selectAll("rect")
-                .data(function(d) { return keys.map(function(key) { return {key: key, value: d[key]}; }); })
+                .data(function (d) {
+                    return keys.map(function (key) {
+                        return {key: key, value: d[key]};
+                    });
+                })
 
-            bars.filter(function(d) {
+            bars.filter(function (d) {
                 return filtered.indexOf(d.key) > -1;
             })
                 .transition()
-                .attr("x", function(d) {
-                    return (+d3.select(this).attr("x")) + (+d3.select(this).attr("width"))/2;
+                .attr("x", function (d) {
+                    return (+d3.select(this).attr("x")) + (+d3.select(this).attr("width")) / 2;
                 })
-                .attr("height",0)
-                .attr("width",0)
-                .attr("y", function(d) { return height; })
+                .attr("height", 0)
+                .attr("width", 0)
+                .attr("y", function (d) {
+                    return height;
+                })
                 .duration(500);
 
             //
             // Adjust the remaining bars:
             //
-            bars.filter(function(d) {
+            bars.filter(function (d) {
                 return filtered.indexOf(d.key) == -1;
             })
                 .transition()
-                .attr("x", function(d) { return x1(d.key); })
-                .attr("y", function(d) { return y(d.value); })
-                .attr("height", function(d) { return height - y(d.value); })
+                .attr("x", function (d) {
+                    return x1(d.key);
+                })
+                .attr("y", function (d) {
+                    return y(d.value);
+                })
+                .attr("height", function (d) {
+                    return height - y(d.value);
+                })
                 .attr("width", x1.bandwidth())
-                .attr("fill", function(d) { return z(d.key); })
+                .attr("fill", function (d) {
+                    return z(d.key);
+                })
                 .duration(500);
 
 
             // update legend:
             legend.selectAll("rect")
                 .transition()
-                .attr("fill",function(d) {
+                .attr("fill", function (d) {
                     if (filtered.length) {
                         if (filtered.indexOf(d) == -1) {
                             return z(d);
-                        }
-                        else {
+                        } else {
                             return "white";
                         }
-                    }
-                    else {
+                    } else {
                         return z(d);
                     }
                 })
@@ -278,7 +347,7 @@
 
     // for word wrapping in x-axis labels
     function wrap(text, width) {
-        text.each(function() {
+        text.each(function () {
             var text = d3.select(this),
                 words = text.text().split(/\s+/).reverse(),
                 word,

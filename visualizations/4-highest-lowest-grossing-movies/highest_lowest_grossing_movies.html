@@ -1,3 +1,7 @@
+---
+# this is an empty front matter
+---
+
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
@@ -51,12 +55,32 @@
         left: 0;
     }
 
-    svg{
-        margin:auto;
+    svg {
+        margin: auto;
     }
 
 </style>
+<head>
+    <link href="../../vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+</head>
 <body>
+{% include nav.html %}
+
+<div class="container-fluid">
+    <br/><br/>
+    <div class="row">
+        <div class="col-md-12" style="text-align: center;" id="container">
+        </div>
+    </div>
+    <br/>
+    <br/>
+</div>
+
+{% include footer.html %}
+
+<script src="../../vendor/jquery/jquery.min.js"></script>
+<script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+</body>
 <script src="../../vendor/bootstrap/js/d3.v5.js"></script>
 <script src="../../vendor/bootstrap/js/d3-tip.js"></script>
 
@@ -77,7 +101,7 @@
 
     let xAxis = d3.axisBottom()
         .scale(x)
-        .tickFormat( d => formatValue(d).replace(/G/,"B"));
+        .tickFormat(d => formatValue(d).replace(/G/, "B"));
 
 
     let yAxis = d3.axisLeft()
@@ -85,7 +109,7 @@
         .tickSize(0)
         .tickPadding(6);
 
-    let svg = d3.select("body").append("svg")
+    let svg = d3.select("#container").append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
         // .attr("preserveAspectRatio", "xMinYMin meet")
@@ -115,7 +139,7 @@
             })
             .attr("x", d => x(Math.min(0, d.profit)))
             .attr("y", d => y(d.original_title))
-            .attr("width", d => Math.abs(x(d.profit) - x(0)) )
+            .attr("width", d => Math.abs(x(d.profit) - x(0)))
             .attr("height", y.bandwidth())
             .on('mouseover', tip.show)
             .on('mouseout', tip.hide);
@@ -156,6 +180,7 @@
     }
 
     function format(d) {
-        return "$" + d3.format(".2s")(d).replace(/G/,"B"); }
+        return "$" + d3.format(".2s")(d).replace(/G/, "B");
+    }
 
 </script>
