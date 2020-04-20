@@ -7,11 +7,11 @@
 <style>
 
     .bar--positive {
-        fill: steelblue;
+        fill: #4E79A8;
     }
 
     .bar--negative {
-        fill: darkorange;
+        fill: #F28E2C;
     }
 
     .axis text {
@@ -29,7 +29,7 @@
         line-height: 1;
         font-weight: bold;
         padding: 12px;
-        background: #EAC683;
+        background: #BAB0AB;
         color: #fff;
         border-radius: 2px;
         font: 10px sans-serif;
@@ -42,7 +42,7 @@
         font-size: 10px;
         width: 100%;
         line-height: 1;
-        color: #EAC683;
+        color: #BAB0AB;
         content: "\25BC";
         position: absolute;
         text-align: center;
@@ -66,28 +66,32 @@
 <body>
 {% include nav.html %}
 
+<br/><br/>
+
 <div class="container-fluid">
-    <br/><br/>
     <div class="row">
         <div class="col-md-12" style="text-align: center;" id="container">
+            <div id='vis-container'></div>
         </div>
     </div>
-    <br/>
-    <br/>
 </div>
+
+<br/><br/>
 
 {% include footer.html %}
 
 <script src="../../vendor/jquery/jquery.min.js"></script>
 <script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="../../vendor/js/moment.min.js"></script>
+<script src="../../vendor/js/lodash.min.js"></script>
 </body>
-<script src="../../vendor/bootstrap/js/d3.v5.js"></script>
-<script src="../../vendor/bootstrap/js/d3-tip.js"></script>
+<script src="../../vendor/js/d3.v5.js"></script>
+<script src="../../vendor/js/d3-tip.js"></script>
 
 <script>
 
     let margin = {top: 20, right: 20, bottom: 50, left: 60},
-        width = 900 - margin.left - margin.right,
+        width = 1100 - margin.left - margin.right,
         height = 560 - margin.top - margin.bottom;
 
     let x = d3.scaleLinear()
@@ -112,47 +116,60 @@
     let svg = d3.select("#container").append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
-        // .attr("preserveAspectRatio", "xMinYMin meet")
-        // .attr("viewBox", `0 0 900 560`)
-        // .classed("svg-content-responsive", true)
         .append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
     let tip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([0, 0])
-        .html(d => `${d.profit > 0 ? "Profit" : "Loss"}: <span style='color:#362414'> ${format(d.profit > 0 ? d.profit : d.profit * -1)} </span>`
+        .html(d => `${d.profit > 0 ? "Profit" : "Loss"}:
+                    <span style='color:#362414'>
+                        ${format(d.profit > 0 ? d.profit : d.profit * -1)}
+                    </span> <br/>
+                    Budget:
+                    <span style='color:#362414'>
+                        ${format(d.budget)}
+                    </span><br/>
+                    Revenue:
+                    <span style='color:#362414'>
+                        ${format(d.revenue)}
+                    </span> <br/>
+                    Title:
+                    <span style='color:#362414'>
+                        ${d.original_title}
+                    </span> <br/>
+                    Release date:
+                    <span style='color:#362414'>
+                        ${d.release_date}
+                    </span>`
         );
 
     svg.call(tip);
 
-    d3.csv("top10_lowest10.csv", type).then(data => {
-        console.table('data', data)
-        x.domain(d3.extent(data, d => d.profit)).nice();
-        y.domain(data.map(d => d.original_title));
+    d3.csv("../2-revenue-vs-budget/tmdb_5000_movies_with_profit.csv", type).then(data => {
+        // console.table('data', data)
 
-        svg.selectAll(".bar")
-            .data(data)
-            .enter().append("rect")
-            .attr("class", d => {
-                return "bar bar--" + (d.profit < 0 ? "negative" : "positive");
-            })
-            .attr("x", d => x(Math.min(0, d.profit)))
-            .attr("y", d => y(d.original_title))
-            .attr("width", d => Math.abs(x(d.profit) - x(0)))
-            .attr("height", y.bandwidth())
-            .on('mouseover', tip.show)
-            .on('mouseout', tip.hide);
+        this.data = data;
 
-        svg.append("g")
-            .attr("class", "x axis")
-            .attr("transform", "translate(0," + height + ")")
-            .call(xAxis);
+        let lowestTenMovies = data
+            .map(d => d)
+            .sort((a, b) => d3.ascending(+a.profit, +b.profit))
+            .slice(0, 10);
 
-        svg.append("g")
-            .attr("class", "y axis")
-            .attr("transform", "translate(" + x(0) + ",0)")
-            .call(yAxis);
+        let lowestTenMoviesDescending = lowestTenMovies.sort((a, b) => d3.descending(+a.profit, +b.profit))
+
+        let highestTenMovies = data
+            .map(d => d)
+            .sort((a, b) => d3.descending(+a.profit, +b.profit))
+            .slice(0, 10);
+
+        let highestAndLowestMovies = highestTenMovies.concat(lowestTenMoviesDescending);
+
+        renderDropdown(data);
+
+        updateNewData(highestAndLowestMovies);
+
+        // console.error('highestAndLowestMovies', highestAndLowestMovies)
 
         // chart label
         svg.append("text")
@@ -173,6 +190,140 @@
             .text("Profit");
 
     });
+
+    function updateNewData(highestAndLowestMovies) {
+        console.error('new data to be updated', highestAndLowestMovies)
+
+        var items = d3.select('svg').selectAll('g').data(highestAndLowestMovies);
+        var items2 = d3.select('svg').selectAll('g').selectAll('rect').data(highestAndLowestMovies);
+        var items3 = d3.select('svg').selectAll('g').selectAll('rect').selectAll('rect').data(highestAndLowestMovies);
+        var items1 = d3.select('svg').selectAll('g').selectAll('g').selectAll('g').remove();
+        var items0 = d3.select('svg').selectAll('g').selectAll('g').selectAll('path').remove();
+        var items4 = d3.select('svg').selectAll('g').selectAll('text').data(highestAndLowestMovies);
+
+        items.exit().remove();
+        items2.exit().remove();
+        items3.exit().remove();
+        items1.exit().remove();
+        items4.exit().remove();
+
+        x.domain(d3.extent(highestAndLowestMovies, d => d.profit)).nice();
+
+        y.domain(highestAndLowestMovies.map(d => d.original_title));
+
+        svg.selectAll(".bar")
+            .data(highestAndLowestMovies)
+            .enter().append("rect")
+            .attr("class", d => {
+                return "bar bar--" + (d.profit < 0 ? "negative" : "positive");
+            })
+            .attr("y", d => y(d.original_title))
+            .attr("height", y.bandwidth())
+            .on('mouseover', tip.show)
+            .on('mouseout', tip.hide);
+
+        svg.selectAll(".bar")
+            .transition().duration(250)
+            .attr("class", d => {
+                return "bar bar--" + (d.profit < 0 ? "negative" : "positive");
+            })
+            .attr("y", d => y(d.original_title))
+            .attr("height", y.bandwidth())
+            .attr("x", d => x(Math.min(0, d.profit)))
+            .attr("width", d => Math.abs(x(d.profit) - x(0)));
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+
+        svg.append("g")
+            .attr("class", "y axis")
+            .attr("transform", "translate(" + x(0) + ",0)")
+            .call(yAxis);
+    }
+
+    function renderDropdown(dataYears) {
+
+        let listOfYears =
+            dataYears
+                .map(d => {
+                    d.release_year = moment(d.release_date).year();
+                    return d.release_year
+                }).filter(
+                d => {
+                    return !isNaN(d) && d > 1987 && d < 2019;
+                }
+            ).sort();
+
+        // console.error('listOfYears', listOfYears);
+
+        let uniqueListOfYears = _.uniq(listOfYears);
+
+        uniqueListOfYears.push('All');
+
+        // console.error('uniqueListOfYears', uniqueListOfYears);
+
+        var dropdown = d3.select("#vis-container")
+            .insert("select", "svg")
+            .on("change", dropdownChange);
+
+        dropdown.selectAll("option")
+            .data(uniqueListOfYears)
+            .enter().append("option")
+            .attr("value", d => d)
+            .text(d => d)
+            .property("selected", function (d) {
+                return d === 'All';
+            });
+    }
+
+    function getData() {
+        var that = this;
+        return that.data;
+    }
+
+    function dropdownChange() {
+
+        var yearSelected = d3.select(this).property('value');
+        // console.error('new year selected', yearSelected);
+
+        let data = getData();
+
+        let topData = sortDataByYearAndDescending(data, yearSelected);
+
+        function sortDataByYearAndDescending(data, yearSelected) {
+
+            // get data by selected year
+            let dataSortedByYear = data.map(function (d) {
+                if (d.release_year === Number(yearSelected)) {
+                    return d;
+                }
+            });
+
+            // console.error('dataSortedByYear', dataSortedByYear);
+
+            let dataToBeSortedByProfit = yearSelected === 'All' ? data : dataSortedByYear;
+
+            // get lowest 10 movies
+            let lowestTenMovies = dataToBeSortedByProfit
+                .sort((a, b) => d3.ascending(+a.profit, +b.profit))
+                .slice(0, 10);
+
+            let lowestTenMoviesDescending = lowestTenMovies.sort((a, b) => d3.descending(+a.profit, +b.profit))
+
+            // get highest 10 movies
+            let highestTenMovies = dataToBeSortedByProfit
+                .map(d => d)
+                .sort((a, b) => d3.descending(+a.profit, +b.profit))
+                .slice(0, 10);
+
+            return _.compact(highestTenMovies.concat(lowestTenMoviesDescending));
+
+        }
+
+        updateNewData(topData)
+    }
 
     function type(d) {
         d.profit = +d.profit;

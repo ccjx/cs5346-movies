@@ -21,9 +21,10 @@
         line-height: 1;
         font-weight: bold;
         padding: 12px;
-        background: #EAC683;
+        background: #BAB0AB;
         color: #fff;
         border-radius: 2px;
+        font: 10px sans-serif;
     }
 
     /* Creates a small triangle extender for the tooltip */
@@ -33,7 +34,7 @@
         font-size: 10px;
         width: 100%;
         line-height: 1;
-        color: #EAC683;
+        color: #BAB0AB;
         content: "\25BC";
         position: absolute;
         text-align: center;
@@ -51,28 +52,30 @@
     <link href="../../vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    {% include nav.html %}
-
+{% include nav.html %}
+<br/><br/><br/><br/><br/><br/>
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12" style="text-align: center;">
-            <br/><br/>
-            <svg width="960" height="500"></svg>
-            <br/>
-            <br/>
+            <div id='vis-container'></div>
+            <svg width="960" height="500" id="visualization"></svg>
         </div>
     </div>
-
 </div>
+<br/><br/>
 
-    {% include footer.html %}
+{% include footer.html %}
 
 
-    <script src="../../vendor/jquery/jquery.min.js"></script>
-    <script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="../../vendor/jquery/jquery.min.js"></script>
+<script src="../../vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
 </body>
-<script src="../../vendor/bootstrap/js/d3.v5.js"></script>
-<script src="../../vendor/bootstrap/js/d3-tip.js"></script>
+<script src="../../vendor/js/d3.min.js"></script>
+<script src="../../vendor/js/d3-tip.js"></script>
+<script src="../../vendor/js/moment.min.js"></script>
+<script src="../../vendor/js/lodash.min.js"></script>
+
+
 <script>
 
     let svg = d3.select("svg"),
@@ -93,46 +96,189 @@
     let y = d3.scaleLinear()
         .rangeRound([height, 0]);
 
-    let z = d3.scaleOrdinal()
-        .range(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+    let z = d3.scaleOrdinal(d3.schemeTableau10);
 
     let tip = d3.tip()
         .attr('class', 'd3-tip')
         .offset([-10, 0])
         .html(function (d) {
-            console.error('calling', d)
-            return "<strong>" + d.key + ":" + "</strong> <span style='color:#362414'>" + d.value + "</span>";
+            return "<strong>" + d.key + ":" + "</strong> <span style='color:#362414'>" + format(d.value) + "</span>";
         });
+
+    function format(d) {
+        return "$" + d3.format(".2s")(d).replace(/G/, "B");
+    }
 
     svg.call(tip);
 
-    d3.csv("top10_finances.csv", function (d, i, columns) {
-        for (let i = 1, n = columns.length; i < n; ++i) d[columns[i]] = +d[columns[i]];
-        console.log('d', d)
+    d3.csv("tmdb_5000_movies_with_profit.csv", function (d, i, columns) {
         return d;
     }).then(function (data) {
-        console.log('data', data);
 
-        let keys = data.columns.slice(1);
+        this.data = data;
+
+        renderDropdown(data);
+
+        let topData = sortDataByYearAndProfit(data);
+
+        updateNewData(topData);
+
+        // chart label
+        svg.append("text")
+            .attr("x", (width / 2))
+            .attr("y", 20)
+            .attr("text-anchor", "middle")
+            .style("font-size", "12px")
+            .style("font-weight", "bold")
+            .text("Budget vs Revenue for Top 10 highest grossing movies");
+
+    });
+
+    function sortDataByYearAndProfit(dataArg) {
+
+        // get data by selected year
+        // get top 10 profiteering movies
+
+        return dataArg
+            .map(d => d)
+            .sort((a, b) => d3.descending(+a.profit, +b.profit))
+            .slice(0, 10);
+    }
+
+    // for word wrapping in x-axis labels
+    function wrap(text, width) {
+        text.each(function () {
+            var text = d3.select(this),
+                words = text.text().split(/\s+/).reverse(),
+                word,
+                line = [],
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                y = text.attr("y"),
+                dy = parseFloat(text.attr("dy")),
+                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+            while (word = words.pop()) {
+                line.push(word);
+                tspan.text(line.join(" "));
+                if (tspan.node().getComputedTextLength() > width) {
+                    line.pop();
+                    tspan.text(line.join(" "));
+                    line = [word];
+                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", `${++lineNumber * lineHeight + dy}em`).text(word)
+                }
+            }
+        })
+    }
+
+    function renderDropdown(dataYears) {
+
+        let listOfYears =
+            dataYears
+                .map(d => {
+                    d.release_year = moment(d.release_date).year();
+                    return d.release_year
+                }).filter(
+                d => {
+                    return !isNaN(d) && d > 1987 && d < 2019;
+                }
+            ).sort();
+
+        // console.error('listOfYears', listOfYears);
+
+        let uniqueListOfYears = _.uniq(listOfYears);
+
+        uniqueListOfYears.push('All');
+
+        // console.error('uniqueListOfYears', uniqueListOfYears);
+
+        var dropdown = d3.select("#vis-container")
+            .insert("select", "svg")
+            .on("change", dropdownChange);
+
+        dropdown.selectAll("option")
+            .data(uniqueListOfYears)
+            .enter().append("option")
+            .attr("value", d => d)
+            .text(d => d)
+            .property("selected", function (d) {
+                return d === 'All';
+            });
+    }
+
+    function getData() {
+        var that = this;
+        return that.data;
+    }
+
+    function dropdownChange() {
+
+        var yearSelected = d3.select(this).property('value');
+        console.error('new year selected', yearSelected);
+
+        let data = getData();
+
+        let topData = sortDataByYearAndDescending(data, yearSelected);
+
+        function sortDataByYearAndDescending(data, yearSelected) {
+
+            // get data by selected year
+            let dataSortedByYear = data.map(function (d) {
+                if (d.release_year === Number(yearSelected)) {
+                    return d;
+                }
+            });
+
+            // console.error('dataSortedByYear', dataSortedByYear);
+
+            let dataToBeSortedByProfit = yearSelected === 'All' ? data : dataSortedByYear;
+
+            // get top 10 profiteering movies
+            let top10Data = dataToBeSortedByProfit.sort(function (a, b) {
+                return d3.descending(+a.profit, +b.profit);
+            }).slice(0, 10);
+
+            // console.error('top10Data', top10Data);
+
+            return top10Data;
+        }
+
+        // updateBars(topData);
+        updateNewData(topData)
+    }
+
+    function updateNewData(newData) {
+
+        var items = d3.select('svg').selectAll('g').data(newData);
+        var items2 = d3.select('svg').selectAll('g').selectAll('rect').data(newData);
+        var items3 = d3.select('svg').selectAll('g').selectAll('rect').selectAll('rect').data(newData);
+        var items1 = d3.select('svg').selectAll('g').selectAll('g').selectAll('g').remove();
+        var items4 = d3.select('svg').selectAll('g').selectAll('text').data(newData);
+
+        items.exit().remove();
+        items2.exit().remove();
+        items3.exit().remove();
+        items1.exit().remove();
+        items4.exit().remove();
+
+        let keys = ['profit', 'budget', 'revenue'];
 
         let formatValue = d3.format(".2s");
 
-
-        console.log('keys');
-        console.log(keys);
-        x0.domain(data.map(function (d) {
+        x0.domain(newData.map(function (d) {
             return d.original_title;
         }));
+
         x1.domain(keys).rangeRound([0, x0.bandwidth()]);
-        y.domain([0, d3.max(data, function (d) {
+
+        y.domain([0, d3.max(newData, function (d) {
             return d3.max(keys, function (key) {
-                return d[key];
+                return Number(d[key]);
             });
         })]).nice();
 
         g.append("g")
             .selectAll("g")
-            .data(data)
+            .data(newData)
             .enter().append("g")
             .attr("class", "bar")
             .attr("transform", function (d) {
@@ -141,7 +287,7 @@
             .selectAll("rect")
             .data(function (d) {
                 return keys.map(function (key) {
-                    return {key: key, value: d[key]};
+                    return {key: key, value: Number(d[key])};
                 });
             })
             .enter().append("rect")
@@ -197,6 +343,7 @@
             .attr("font-size", 10)
             .attr("text-anchor", "end")
             .selectAll("g")
+            // .data(keys)
             .data(keys.slice().reverse())
             .enter().append("g")
             .attr("transform", function (d, i) {
@@ -222,20 +369,7 @@
                 return d;
             });
 
-        let filtered = [];
-
-        // chart label
-        svg.append("text")
-            .attr("x", (width / 2))
-            .attr("y", 20)
-            .attr("text-anchor", "middle")
-            .style("font-size", "12px")
-            .style("font-weight", "bold")
-            .text("Budget vs Revenue for Top 10 highest grossing movies");
-
-        ////
-        //// Update and transition on click:
-        ////
+        let filtered = []
 
         function update(d) {
 
@@ -264,18 +398,17 @@
                 }
             })
             x1.domain(newKeys).rangeRound([0, x0.bandwidth()]);
-            y.domain([0, d3.max(data, function (d) {
+            y.domain([0, d3.max(newData, function (d) {
                 return d3.max(keys, function (key) {
-                    if (filtered.indexOf(key) == -1) return d[key];
+                    if (filtered.indexOf(key) == -1) return Number(d[key]);
                 });
             })]).nice();
 
             // update the y axis:
             svg.select(".y")
                 .transition()
-                .call(d3.axisLeft(y).ticks(null, "s"))
+                .call(d3.axisLeft(y).tickFormat(d => formatValue(d).replace(/G/, "B")))
                 .duration(500);
-
 
             //
             // Filter out the bands that need to be hidden:
@@ -283,7 +416,7 @@
             let bars = svg.selectAll(".bar").selectAll("rect")
                 .data(function (d) {
                     return keys.map(function (key) {
-                        return {key: key, value: d[key]};
+                        return {key: key, value: Number(d[key])};
                     });
                 })
 
@@ -340,34 +473,8 @@
                 })
                 .duration(100);
 
-
         }
 
-    });
-
-    // for word wrapping in x-axis labels
-    function wrap(text, width) {
-        text.each(function () {
-            var text = d3.select(this),
-                words = text.text().split(/\s+/).reverse(),
-                word,
-                line = [],
-                lineNumber = 0,
-                lineHeight = 1.1, // ems
-                y = text.attr("y"),
-                dy = parseFloat(text.attr("dy")),
-                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
-            while (word = words.pop()) {
-                line.push(word);
-                tspan.text(line.join(" "));
-                if (tspan.node().getComputedTextLength() > width) {
-                    line.pop();
-                    tspan.text(line.join(" "));
-                    line = [word];
-                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", `${++lineNumber * lineHeight + dy}em`).text(word)
-                }
-            }
-        })
     }
 
 </script>
