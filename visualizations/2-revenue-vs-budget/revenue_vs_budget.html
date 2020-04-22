@@ -57,7 +57,8 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-md-12" style="text-align: center;">
-            <div id='vis-container'></div>
+            <div id='dropdown-year'></div> <br/>
+            <div id='dropdown-studio'></div>
             <svg width="960" height="500" id="visualization"></svg>
         </div>
     </div>
@@ -118,6 +119,7 @@
         this.data = data;
 
         renderDropdown(data);
+        renderDropdownStudio(data);
 
         let topData = sortDataByYearAndProfit(data);
 
@@ -140,34 +142,9 @@
         // get top 10 profiteering movies
 
         return dataArg
-            .map(d => d)
+            .map(d => d) // no mapping actually required. when initialising, no year/studio is selected.
             .sort((a, b) => d3.descending(+a.profit, +b.profit))
             .slice(0, 10);
-    }
-
-    // for word wrapping in x-axis labels
-    function wrap(text, width) {
-        text.each(function () {
-            var text = d3.select(this),
-                words = text.text().split(/\s+/).reverse(),
-                word,
-                line = [],
-                lineNumber = 0,
-                lineHeight = 1.1, // ems
-                y = text.attr("y"),
-                dy = parseFloat(text.attr("dy")),
-                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
-            while (word = words.pop()) {
-                line.push(word);
-                tspan.text(line.join(" "));
-                if (tspan.node().getComputedTextLength() > width) {
-                    line.pop();
-                    tspan.text(line.join(" "));
-                    line = [word];
-                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", `${++lineNumber * lineHeight + dy}em`).text(word)
-                }
-            }
-        })
     }
 
     function renderDropdown(dataYears) {
@@ -187,11 +164,11 @@
 
         let uniqueListOfYears = _.uniq(listOfYears);
 
-        uniqueListOfYears.push('All');
+        uniqueListOfYears.push('All Years');
 
         // console.error('uniqueListOfYears', uniqueListOfYears);
 
-        var dropdown = d3.select("#vis-container")
+        var dropdown = d3.select("#dropdown-year")
             .insert("select", "svg")
             .on("change", dropdownChange);
 
@@ -201,52 +178,107 @@
             .attr("value", d => d)
             .text(d => d)
             .property("selected", function (d) {
-                return d === 'All';
+                return d === 'All Years';
             });
     }
 
-    function getData() {
-        var that = this;
-        return that.data;
+    function renderDropdownStudio(data) {
+
+        var dropdown = d3.select("#dropdown-studio")
+            .insert("select", "svg")
+            .on("change", dropdownStudioChange);
+
+        let array = []
+
+        // loop through each row, get production_companies value
+        d3.map(data, function (d) {
+            let companies = JSON.parse(d.production_companies);
+            companies.map(company => {
+                if (!array[String(company["id"])]) {
+                    array.push(company)
+                }
+            })
+        }).keys()
+
+        // get unique values and sort by alphabetical order
+        let uniqueArr = _.uniqBy(array, 'id');
+        let sortedUniqueArr = _.orderBy(uniqueArr, [co => co.name.toLowerCase()], ['asc']);
+
+        sortedUniqueArr.push({id: 0, name: 'All Studios'});
+
+        dropdown.selectAll("option")
+            .data(sortedUniqueArr)
+            .enter()
+            .append("option")
+            .text(function (d) {
+                return d.name;
+            })
+            .attr("value", function (d) {
+                return d.id;
+            })
+            .property("selected", function (d) {
+                return d.id === 0;
+            });
+    }
+
+    function dropdownStudioChange() {
+        setSelectedStudioId(d3.select(this).property('value'));
+        processDataForDropdownChange();
     }
 
     function dropdownChange() {
+        setYearSelected(d3.select(this).property('value'))
+        processDataForDropdownChange();
+    }
 
-        var yearSelected = d3.select(this).property('value');
-        console.error('new year selected', yearSelected);
-
-        let data = getData();
-
-        let topData = sortDataByYearAndDescending(data, yearSelected);
-
-        function sortDataByYearAndDescending(data, yearSelected) {
-
-            // get data by selected year
-            let dataSortedByYear = data.map(function (d) {
-                if (d.release_year === Number(yearSelected)) {
-                    return d;
-                }
-            });
-
-            // console.error('dataSortedByYear', dataSortedByYear);
-
-            let dataToBeSortedByProfit = yearSelected === 'All' ? data : dataSortedByYear;
-
-            // get top 10 profiteering movies
-            let top10Data = dataToBeSortedByProfit.sort(function (a, b) {
-                return d3.descending(+a.profit, +b.profit);
-            }).slice(0, 10);
-
-            // console.error('top10Data', top10Data);
-
-            return top10Data;
-        }
-
-        // updateBars(topData);
+    function processDataForDropdownChange() {
+        let data = getCSVData();
+        let topData = sortDataByYearStudioDescending(data);
         updateNewData(topData)
     }
 
+    function sortDataByYearStudioDescending(data) {
+
+        let selectedStudioId = getSelectedStudioId();
+        let yearSelected = getYearSelected();
+        console.error('new year selected', yearSelected);
+
+        // get data by selected year
+        let dataSortedByYear = yearSelected && yearSelected !== 'All Years' ? data.map(function (d) {
+            if (d.release_year === Number(yearSelected)) {
+                return d;
+            }
+        }).filter(Boolean) : data;
+
+        // console.error('dataSortedByYear', dataSortedByYear);
+
+        let dataSortedByYearAndStudio = selectedStudioId && selectedStudioId !== '0' ? dataSortedByYear.map(function (d) {
+            let cos = JSON.parse(d['production_companies']);
+            let shouldReturn = false;
+            if (_.find(cos, ['id', Number(selectedStudioId)])) {
+                shouldReturn = true;
+            }
+            return shouldReturn ? d : undefined;
+        }).filter(Boolean) : yearSelected === 'All Years' ? data : dataSortedByYear;
+
+        // get top 10 profiteering movies
+        let top10Data = dataSortedByYearAndStudio.sort(function (a, b) {
+            return d3.descending(+a.profit, +b.profit);
+        }).slice(0, 10);
+
+        // console.error('top10Data', top10Data);
+
+        return top10Data;
+    }
+
     function updateNewData(newData) {
+        console.error('new data to be updated', newData);
+
+        if (newData.length === 0) {
+            alert('Data not available for this option!');
+            return
+        }
+
 
         var items = d3.select('svg').selectAll('g').data(newData);
         var items2 = d3.select('svg').selectAll('g').selectAll('rect').data(newData);
@@ -475,6 +507,59 @@
 
         }
 
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    // helper functions
+
+    function setSelectedStudioId(id) {
+        var that = this;
+        that.selectedStudioId = id;
+    }
+
+    function getSelectedStudioId() {
+        var that = this;
+        return that.selectedStudioId;
+    }
+
+    function setYearSelected(val) {
+        var that = this;
+        that.yearSelected = val;
+    }
+
+    function getYearSelected() {
+        var that = this;
+        return that.yearSelected;
+    }
+
+    function getCSVData() {
+        var that = this;
+        return that.data;
+    }
+
+    // for word wrapping in x-axis labels
+    function wrap(text, width) {
+        text.each(function () {
+            var text = d3.select(this),
+                words = text.text().split(/\s+/).reverse(),
+                word,
+                line = [],
+                lineNumber = 0,
+                lineHeight = 1.1, // ems
+                y = text.attr("y"),
+                dy = parseFloat(text.attr("dy")),
+                tspan = text.text(null).append("tspan").attr("x", 0).attr("y", y).attr("dy", dy + "em");
+            while (word = words.pop()) {
+                line.push(word);
+                tspan.text(line.join(" "));
+                if (tspan.node().getComputedTextLength() > width) {
+                    line.pop();
+                    tspan.text(line.join(" "));
+                    line = [word];
+                    tspan = text.append("tspan").attr("x", 0).attr("y", y).attr("dy", `${++lineNumber * lineHeight + dy}em`).text(word)
+                }
+            }
+        })
     }
 
 </script>
