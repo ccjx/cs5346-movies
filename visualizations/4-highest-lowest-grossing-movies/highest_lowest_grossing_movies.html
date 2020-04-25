@@ -67,7 +67,7 @@
 <body>
 {% include nav.html %}
 
-<br/><br/><br/>
+<br/><br/><br/><br/>
 
 <div class="container-fluid">
     <div class="row">
@@ -146,10 +146,14 @@
                     Release date:
                     <span style='color:#362414'>
                         ${d.release_date}
-                    </span> <br>
+                    </span> <br/>
                     Movie studios:
                     <span style='color:#362414;'>
-                    ${formatStudios(d.production_companies)}
+                    ${formatArray(d.production_companies)}
+                    </span> <br/>
+                    Genres:
+                    <span style='color:#362414;'>
+                    ${formatArray(d.genres)}
                     </span>
 
 `
@@ -445,12 +449,12 @@
         return "$" + d3.format(".2s")(d).replace(/G/, "B");
     }
 
-    function formatStudios(companyArr) {
-        let companyArrObj = JSON.parse(companyArr)
-        let co = companyArrObj.map(companies =>
+    function formatArray(arr) {
+        let arrObj = JSON.parse(arr)
+        let _arr = arrObj.map(companies =>
             companies["name"]
         );
-        return companyArrObj.length > 1 ? co.join(", ") : co;
+        return _arr.length > 1 ? _arr.join(", ") : _arr;
     }
 
 </script>
